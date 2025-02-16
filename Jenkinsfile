@@ -1,5 +1,11 @@
 pipeline {
     agent any
+
+ environment {
+        LW_ACCESS_TOKEN = credentials('LW_ACCESS_TOKEN')
+        LW_ACCOUNT_NAME = credentials('LW_ACCOUNT_NAME')
+    }
+    
     stages {
         stage('Build Docker Image') {
             when {
@@ -28,18 +34,11 @@ pipeline {
             }
         }
         stage('Lacework Vulnerability Scan') {
-            environment {
-                LW_API_SECRET = credentials('lacework_api_secret')
-            }
-            agent {
-                docker { image 'lacework/lacework-cli:latest' }
-            }
-            when {
-                branch 'master'
-            }
             steps {
-                echo 'Running Lacework vulnerability scan'
-                sh "lacework vulnerability container scan index.docker.io $DOCKER_HUB/lacework-cli latest --poll --noninteractive --details"
+                echo 'Scanning image ...'
+                sh "curl -L https://github.com/lacework/lacework-vulnerability-scanner/releases/latest/download/lw-scanner-linux-amd64 -o lw-scanner"
+                sh "chmod +x lw-scanner"
+                sh "./lw-scanner image evaluate lacework-cli latest --build-id ${BUILD_NUMBER}"
             }
         }
     }
